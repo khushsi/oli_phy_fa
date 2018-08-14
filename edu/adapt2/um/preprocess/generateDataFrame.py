@@ -17,7 +17,8 @@ kc_mapping_performance_file = 'kc_question_step_mapping.tsv'
 
 #output Files
 file_post_quizzes = "data/sectionwise_post_quizzes.csv"
-file_learning_objectives = "data/sectionwise_learning_objectivies.csv"
+file_learning_objectives = "data/kc_learning_objectivies.csv"
+inline_step_text= "data/inline_assesment.csv"
 file_question_section="data/question_section_mapping.csv"
 newbook = 'data/book.csv'
 fprocessed_logs = "data/preadinglogs.tsv"
@@ -45,15 +46,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-DRAW_FIRST_ATTEMPT_SUCCESS = False
-DRAW_ALL_ATTEMPT_SUCCESS = False
-DRAW_LAST_ATTEMPT_SUCCESS = False
-DRAW_FIRST_IS_LAST=False
-DRAW_QUESTION_WISE_ATTEMPT=False
-DRAW_READ_DIST=True
-DRAW_READING_GROUPS = True
-DRAW_LEARNING_CURVE=False
-DRAW_LEARNING_CURVE_READING = False
+# DRAW_FIRST_ATTEMPT_SUCCESS = False
+# DRAW_ALL_ATTEMPT_SUCCESS = False
+# DRAW_LAST_ATTEMPT_SUCCESS = False
+# DRAW_FIRST_IS_LAST=False
+# DRAW_QUESTION_WISE_ATTEMPT=False
+# DRAW_READ_DIST=True
+# DRAW_READING_GROUPS = True
+# DRAW_LEARNING_CURVE=False
+# DRAW_LEARNING_CURVE_READING = False
 
 
 # if  not os.path.isfile(booklenfile):
@@ -110,7 +111,7 @@ if  not os.path.isfile(newbook):
             soup = BeautifulSoup(xmlstrtitle)
             titletext = soup.get_text()
             btext = headtext + " " + bodytext
-            btext = re.sub("\s{2,}"," ",btext.replace("\n"," ").replace("\t"," "))
+            btext = re.sub("\s{2,}"," ",btext.replace("\n"," ").replace("\t"," ").strip())
             print(workbookpage.get("id"))
             unit=workbookpage.get("id").split("-")[0].lower()
             module=workbookpage.get("id").split("-")[1].lower()
@@ -187,7 +188,6 @@ if( not os.path.isfile(fprocessed_logs)) :
     durationspent = []
 
     for index, row in df_readinglogs.iterrows():
-
         if (df_readinglogs.loc[index]['eventType'] == 'Do') and (df_readinglogs.loc[index]['accuracy'] <= 0.5):
             df_reading = df_readinglogs[(df_readinglogs['eventType'] == 'Read')
                                         & (
@@ -207,13 +207,11 @@ if( not os.path.isfile(qmatrix_predefined_kc)) :
     # csvwriterqm_sec = csv.writer(open(qmatrix_predefined_sec,'w'),delimiter=',',)
 
     csvwriterkc = csv.writer(open(kc2qmatrixid,'w'), delimiter=',', )
-    csvwriterkc.writerow([ "kc"])
 
     # csvwritersec = csv.writer(open(sec2qmatrixid, 'w'), delimiter=',', )
     # csvwritersec.writerow(["section"])
 
     csvwriterstep = csv.writer(open(step2qmatrixid,'w'), delimiter=',', )
-    csvwriterstep.writerow(["question_step"])
     question_dict={}
     df_kc_mapping = pd.read_csv(kc_question_step_mapping, delimiter=",", header=0)
     kc_list=[]
@@ -239,18 +237,54 @@ if( not os.path.isfile(qmatrix_predefined_kc)) :
     #     row_kc = [1 if kc.strip() in section_dict[key] else 0 for kc in kc_list]
     #     csvwriterqm_sec.writerow(row_kc)
 
-
+ln_obj_folder="/x-oli-learning_objectives/"
+lbd_assessment="/x-oli-inline-assessment/"
 if not os.path.isfile(file_learning_objectives):
-    # csvwriter = csv.writer(open(file_learning_objectives,'w'))
-    # csvwriter.writerow(['sectionid','objective'])
+    csvwriter = csv.writer(open(file_learning_objectives,'w'))
+    csvwriter.writerow(['kc','objective'])
 
     for dir in os.listdir(contentDir):
-        if os.path.isdir(contentDir+dir):
-            for subdir in os.listdir(contentDir+dir):
-                if subdir.startswith("x-oli-learning_objectives"):
-                    module = subdir
-                    for objective_file in os.listdir(contentDir+dir+"/"+subdir):
-                        print()
+        if os.path.isdir(contentDir+dir+ln_obj_folder):
+            for subdir in os.listdir(contentDir+dir+ln_obj_folder):
+                # print(bookstring)
+                tree = ElementTree.parse(open(contentDir+dir+ln_obj_folder+subdir, 'r'), parser)
+                root = tree.getroot()
+                obj = root.findall("objective")
+                for ob in obj:
+                    # print(ob.text)
+                    abc = ElementTree.tostring(ob, encoding='utf8', method='xml')
+                    soup = BeautifulSoup(abc)
+                    headtext = soup.get_text()
+                    csvwriter.writerow([ob.attrib['id'],re.sub("\s{2,}"," ",headtext.replace("\n"," ").replace("\t"," ").strip())])
+
+step_dict = {}
+df_step = pd.read_csv(open(step2qmatrixid,"r"))
+for index,row in df_step.iterrows():
+    kc = row[0].split()
+    df_step[kc[0]]
+
+if not os.path.isfile(inline_step_text):
+    # csvwriter = csv.writer(open(inline_step_text,'w'))
+    # csvwriter.writerow(['kc','objective'])
+
+    for dir in os.listdir(contentDir):
+        if os.path.isdir(contentDir+dir+lbd_assessment):
+            for subdir in os.listdir(contentDir+dir+lbd_assessment):
+                print(dir+lbd_assessment+subdir)
+                tree = ElementTree.parse(open(contentDir+dir+lbd_assessment+subdir, 'r'), parser)
+                root = tree.getroot()
+                obj = root.findall("question")
+                for ob in obj:
+                    if not "_lbd_" in subdir :
+                        qid = ob.attrib['id']
+                        step = subdir.replace(".xml","") + "_" + qid
+                        print(step)
+                        # print(ob.text)
+                        abc = ElementTree.tostring(ob, encoding='utf8', method='xml')
+                        soup = BeautifulSoup(abc)
+                        headtext = soup.get_text()
+                        # csvwriter.writerow([ob.attrib['id'],re.sub("\s{2,}"," ",headtext.replace("\n"," ").replace("\t"," ").strip())])
+
 
 
 
