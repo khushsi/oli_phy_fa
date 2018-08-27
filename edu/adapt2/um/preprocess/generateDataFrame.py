@@ -12,8 +12,9 @@ courseDir="/Users/khushboo/Workspace/cmu Project/v_1_4 org/"
 contentDir =courseDir + "content/"
 
 #StreamLogs File
-readinglogfile = 'eventStream_MOOC.tsv'
-kc_mapping_performance_file = 'kc_question_step_mapping.tsv'
+readinglogfile = 'data/eventStream_MOOC.tsv'
+kc_mapping_performance_file = 'data/kc_question_step_mapping.tsv'
+steplogfile = 'data/ds863_student_step_All_Data_2287_2015_0813_191857.tsv'
 
 #output Files
 file_post_quizzes = "data/sectionwise_post_quizzes.csv"
@@ -28,6 +29,7 @@ step2qmatrixid="data/step2qid.csv"
 kc2qmatrixid="data/kc2qid.csv"
 # ques2qmatrixid ="data/section2aid.csv"
 # qmatrix_predefined_sec="data/sec_qmatrix_predifined_kc.csv"
+
 parser = ElementTree.XMLParser(recover=True)
 
 # for child in root:
@@ -83,7 +85,7 @@ import numpy as np
 #             totaltextlen = len(word_tokenize(headtext)) + len(word_tokenize(bodytext))
 #             # print(totaltextlen,workbookpage.get("id"))
 #             csvwriter.writerow([workbookpage.get("id"),totaltextlen])
-
+#Creating Book text and kc list
 if  not os.path.isfile(newbook):
     csvwriter = csv.writer(open(newbook,'w'),delimiter=',',)
     csvwriter.writerow(["unitid","moduleid","sectionid","text","length","title","kclist"])
@@ -119,7 +121,7 @@ if  not os.path.isfile(newbook):
             totaltextlen = len(word_tokenize(btext))
             csvwriter.writerow([unit,module,workbookpage.get("id"),btext,totaltextlen,titletext.strip(),','.join(objlist)])
 
-
+#Section wise question list
 if  not os.path.isfile(file_question_section):
     csvwriter = csv.writer(open(file_question_section,'w'),delimiter=',',)
     csvwriter.writerow(["questionid","sectionid"])
@@ -140,7 +142,7 @@ if  not os.path.isfile(file_question_section):
         #         print("here")
         #         csvwriter.writerow([ques.get("idref"),workbookpage.get("id")])
 
-
+#Question Step to KC mapping
 if( not os.path.isfile(kc_question_step_mapping)) :
     df_kc_mapping = pd.read_csv(kc_mapping_performance_file, delimiter="\t",header=0)
     kc_file = open(kc_question_step_mapping,'w')
@@ -151,7 +153,7 @@ if( not os.path.isfile(kc_question_step_mapping)) :
             csvwriter.writerow([df_kc_mapping.loc[index]["Problem Name"],df_kc_mapping.loc[index]["Step Name"],df_kc_mapping.loc[index]["KC (psychology-1.4)"]])
     kc_file.close()
 
-
+# Adding event Types, reading speed
 df_question_section=pd.read_csv(file_question_section,header=0)
 
 df_book_len = pd.read_csv(newbook, header=0)
@@ -201,7 +203,7 @@ if( not os.path.isfile(fprocessed_logs)) :
     df_readinglogs.to_csv(fprocessed_logs, sep='\t', encoding='utf-8')
 
 
-
+#qmatrix for predifined KCs
 if( not os.path.isfile(qmatrix_predefined_kc)) :
     csvwriterqm = csv.writer(open(qmatrix_predefined_kc,'w'),delimiter=',',)
     # csvwriterqm_sec = csv.writer(open(qmatrix_predefined_sec,'w'),delimiter=',',)
@@ -237,6 +239,7 @@ if( not os.path.isfile(qmatrix_predefined_kc)) :
     #     row_kc = [1 if kc.strip() in section_dict[key] else 0 for kc in kc_list]
     #     csvwriterqm_sec.writerow(row_kc)
 
+# Learning Objectives
 ln_obj_folder="/x-oli-learning_objectives/"
 lbd_assessment="/x-oli-inline-assessment/"
 if not os.path.isfile(file_learning_objectives):
@@ -257,15 +260,15 @@ if not os.path.isfile(file_learning_objectives):
                     headtext = soup.get_text()
                     csvwriter.writerow([ob.attrib['id'],re.sub("\s{2,}"," ",headtext.replace("\n"," ").replace("\t"," ").strip())])
 
-step_dict = {}
-df_step = pd.read_csv(open(step2qmatrixid,"r"))
-for index,row in df_step.iterrows():
-    kc = row[0].split()
-    df_step[kc[0]]
+# step_dict = {}
+# df_step = pd.read_csv(open(step2qmatrixid,"r"))
+# for index,row in df_step.iterrows():
+#     kc = row[0].split()
+#     df_step[kc[0]+"_"+kc[1]]
 
 if not os.path.isfile(inline_step_text):
-    # csvwriter = csv.writer(open(inline_step_text,'w'))
-    # csvwriter.writerow(['kc','objective'])
+    csvwriter = csv.writer(open(inline_step_text,'w'))
+    csvwriter.writerow(['kc','objective'])
 
     for dir in os.listdir(contentDir):
         if os.path.isdir(contentDir+dir+lbd_assessment):
@@ -283,7 +286,34 @@ if not os.path.isfile(inline_step_text):
                         abc = ElementTree.tostring(ob, encoding='utf8', method='xml')
                         soup = BeautifulSoup(abc)
                         headtext = soup.get_text()
-                        # csvwriter.writerow([ob.attrib['id'],re.sub("\s{2,}"," ",headtext.replace("\n"," ").replace("\t"," ").strip())])
+                        csvwriter.writerow([ob.attrib['id'],re.sub("\s{2,}"," ",headtext.replace("\n"," ").replace("\t"," ").strip())])
+
+merged_step_read_file = 'data/merged_step_read_file1.csv'
+if not os.path.isfile(merged_step_read_file):
+    df_preadinglogs = pd.read_csv(fprocessed_logs,header=0,delimiter='\t')
+    df_steplogs = pd.read_csv(steplogfile,header=0,delimiter='\t')
+    keep = ['keep','tooFast']
+    csvwriter = csv.writer(open(inline_step_text,'w'))
+    csvwriter.writerow(['student_id','start_time','end_time','step_id','type','correct','reading_time'])
+
+    for index,row in df_steplogs.iterrows():
+        prevattempts = len(df_steplogs[(df_steplogs['Anon Student Id'] ==row['Anon Student Id'])
+                                   & (df_steplogs['Step Start Time'] < row['Step Start Time'] )
+                                   & (df_steplogs['Problem Name'] == row['Problem Name'])
+                                   & (df_steplogs['Step Name'] == row['Step Name'])])
+        if prevattempts > 0:
+            print(prevattempts,index,row['Anon Student Id'],row['Problem Name'], row['Step Name'])
+
+    for index,row in df_readinglogs.iterrows():
+        if row['eventType'] == 'Read' and row['remove_possible'] in keep:
+            csvwriter.writerow([row['ds_anon_user_id'],row['start_time'],row['end_time'],row['info'],row['eventType'],0,row['readingDuration']])
+
+    # for index,row in df_steplogs.iterrows():
+    #     csvwriter.writerow([row['Anon Student Id'],row['Step Start Time'],row['Step End Time'],row['']])
+
+
+
+
 
 
 
